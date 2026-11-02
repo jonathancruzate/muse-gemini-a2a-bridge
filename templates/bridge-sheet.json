@@ -1,0 +1,10 @@
+{
+  "title": "A2A - Results",
+  "spreadsheet_id": "<SPREADSHEET_ID>",
+  "tab": "Results",
+  "tabs": {
+    "results":  { "name": "Results",  "columns": ["appended_at", "request_id", "token", "kind", "status", "result_json"] },
+    "requests": { "name": "Requests", "columns": ["appended_at", "request_id", "token", "kind", "params_json", "context"] },
+    "notes":    { "name": "Notes",    "columns": ["appended_at", "priority", "note"] }
+  }
+}

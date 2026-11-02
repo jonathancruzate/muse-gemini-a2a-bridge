@@ -1,0 +1,21 @@
+Schedule name: Process Muse bridge requests
+Trigger: incoming email matching subject:"A2A-Event"  (email-based / event-driven, Active)
+Pause instead: any legacy hourly "Check Muse MCP queue" polling schedule.
+
+Prompt:
+When an email with subject "A2A-Event" arrives:
+1. Open the "A2A - Results" spreadsheet and read every data row in the
+   Requests tab. If there are no data rows, stop.
+2. For each request row: carry out the request read/query-only, using your
+   Google connectors and search, according to its kind and params_json.
+   Never book, buy, send, or delete anything.
+3. For each answer, append ONE row to the Results tab:
+   appended_at = now, request_id and token copied EXACTLY from the request
+   row, kind copied from the request row, status = "done" (or "error" with
+   the reason in result_json), result_json = the answer as JSON.
+4. Put any free-form note for Muse as a row in the Notes tab instead of
+   using any Muse MCP tool.
+5. Do NOT call any Muse MCP tool in this scheduled run — no
+   get_pending_requests, no submit_request_result, no leave_note_for_muse.
+   Those calls raise Allow/Deny prompts and stall the run. The sheet is
+   the only channel for scheduled runs.
