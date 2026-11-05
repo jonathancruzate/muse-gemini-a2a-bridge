@@ -6,36 +6,18 @@ Prompt:
 When an email with subject "A2A-Event" arrives:
 1. Open the "A2A - Results" spreadsheet and read every data row in the
    Requests tab. If there are no data rows, stop.
-2. For each request row, branch on its kind:
-   a. DEFAULT (all kinds except business.call): carry out the request
-      read/query-only, using your Google connectors and search, according
-      to its kind and params_json. Never book, buy, send, or delete
-      anything.
-   b. business.call ONLY — route to the Phone Call Agent: this kind is
-      the standing exception to the read/query-only rule, because a phone
-      call cannot be answered with search results (added 2026-11-03 after
-      request 13 returned "unsupported_capability" under the generic
-      prompt — the Phone Call Agent was never invoked). For a
-      business.call row: hand the request to @Phone Call Agent / your
-      business-calling capability with the params_json fields
-      (business_name, phone, caller_name, patient/context_data,
-      confirm_items, if_unanswered). Place the call and ask exactly the
-      confirm_items. The hard_bounds in params_json govern absolutely:
-      when payments=false make no payment; when new_bookings=false and
-      appointment_changes=false, change nothing — confirm facts only.
-      If the call is unanswered, follow if_unanswered (typically: leave a
-      voicemail naming the confirm_items and the callback number on
-      file). If @Phone Call Agent is genuinely unavailable in the run,
-      return status="error" with call_status="phone_agent_unavailable" —
-      never "unsupported_capability" without first routing to it.
+2. For each request row: carry out the request read/query-only, using your
+   Google connectors and search, according to its kind and params_json.
+   Never book, buy, send, or delete anything. (A business.call branch
+   briefly existed here 2026-11-03 to 2026-11-05, routing calls to a
+   Phone Call Agent; it was retired when Muse gained native business
+   calling — business calls never arrive through this bridge anymore,
+   and any stray business.call row is answered read/query-only like any
+   other kind, which will report it cannot place calls.)
 3. For each answer, append ONE row to the Results tab:
    appended_at = now, request_id and token copied EXACTLY from the request
    row, kind copied from the request row, status = "done" (or "error" with
    the reason in result_json), result_json = the answer as JSON.
-   For business.call, result_json must include: call_status
-   (completed / voicemail_left / unanswered / phone_agent_unavailable),
-   who was spoken to (name/role if given), and a per-item verdict for
-   every confirm_item.
 4. Put any free-form note for Muse as a row in the Notes tab instead of
    using any Muse MCP tool.
 5. Do NOT call any Muse MCP tool in this scheduled run — no

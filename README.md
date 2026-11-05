@@ -120,43 +120,20 @@ function onBridgeChange(e) {
   if (cache.get("RECENT_ALERT")) return;
   cache.put("RECENT_ALERT", "true", 15);
 
-  // Read-only scan (UPGRADE 2026-11-03, business.call routing): name the
-  // pending kinds in the alert body and flag business.call rows for the
-  // Phone Call Agent. Columns A-F are appended_at | request_id | token |
-  // kind | params_json | context — there is NO status column, and this
-  // script never writes to the sheet.
-  var businessCalls = 0;
-  var kinds = [];
-  try {
-    var values = requestsSheet.getRange(2, 1, lastRow - 1, 6).getValues();
-    for (var i = 0; i < values.length; i++) {
-      var kind = values[i][3];
-      if (kind) kinds.push(kind);
-      if (kind === "business.call") businessCalls++;
-    }
-  } catch (err) {}
-
-  var body = "A new pending request was appended to the Requests tab in A2A - Results.";
-  if (kinds.length) body += "\nPending kinds: " + kinds.join(", ") + ".";
-  if (businessCalls > 0) {
-    body += "\n" + businessCalls + " business.call request(s) pending: route to @Phone Call Agent per the business.call branch of the processing schedule. Do not treat business.call rows as read/query-only.";
-  }
-
   MailApp.sendEmail({
     to: "<YOUR_EMAIL>",
     subject: "A2A-Event",
-    body: body
+    body: "A new pending request was appended to the Requests tab in A2A - Results."
   });
 }
-
-// Optional MANUAL re-ring for rows already sitting in Requests (run by
-// hand from the Apps Script editor only; writes nothing). NEVER wire it
-// to a time-driven trigger, and NEVER delete existing triggers to add
-// one — the On change trigger is the standing wake-up path.
-function checkBusinessCallRequestsManual() {
-  onBridgeChange(null);
-}
 ```
+
+_History note: a business.call routing upgrade (2026-11-03) briefly added
+a read-only kind scan to this script that flagged business.call rows in
+the alert body for a Phone Call Agent, plus a manual re-ring helper. It
+was RETIRED 2026-11-05 — Muse gained native business calling, so
+business calls no longer route through this bridge — and the doorbell
+returned to the original form above._
 
 Save, then add the trigger: **Triggers (clock icon) → + Add Trigger**
 
@@ -187,31 +164,16 @@ In Gemini Spark, create a schedule named **`Process Muse bridge requests`**:
 When an email with subject "A2A-Event" arrives:
 1. Open the "A2A - Results" spreadsheet and read every data row in the
    Requests tab. If there are no data rows, stop.
-2. For each request row, branch on its kind:
-   a. DEFAULT (all kinds except business.call): carry out the request
-      read/query-only, using your Google connectors and search, according
-      to its kind and params_json. Never book, buy, send, or delete
-      anything.
-   b. business.call ONLY — route to the Phone Call Agent: the standing
-      exception to the read/query-only rule (added 2026-11-03 after
-      request 13 returned "unsupported_capability" under the generic
-      prompt — the Phone Call Agent was never invoked). Hand the row to
-      @Phone Call Agent / the business-calling capability with its
-      params_json (business_name, phone, caller_name, context_data,
-      confirm_items, if_unanswered), place the call, and ask exactly the
-      confirm_items. hard_bounds govern absolutely (payments=false → no
-      payment; new_bookings / appointment_changes=false → confirm facts
-      only). Unanswered → follow if_unanswered. If the Phone Call Agent
-      is genuinely unavailable, return status="error" with
-      call_status="phone_agent_unavailable" — never
-      "unsupported_capability" without first routing to it.
+2. For each request row: carry out the request read/query-only, using your
+   Google connectors and search, according to its kind and params_json.
+   Never book, buy, send, or delete anything. (A business.call branch
+   briefly existed here 2026-11-03 to 2026-11-05, routing calls to a
+   Phone Call Agent; it was retired when Muse gained native business
+   calling — business calls never arrive through this bridge anymore.)
 3. For each answer, append ONE row to the Results tab:
    appended_at = now, request_id and token copied EXACTLY from the request
    row, kind copied from the request row, status = "done" (or "error" with
    the reason in result_json), result_json = the answer as JSON.
-   For business.call, result_json includes call_status (completed /
-   voicemail_left / unanswered / phone_agent_unavailable), who was spoken
-   to, and a per-item verdict for every confirm_item.
 4. Put any free-form note for Muse as a row in the Notes tab instead of
    using any Muse MCP tool.
 5. Do NOT call any Muse MCP tool in this scheduled run — no
@@ -279,15 +241,14 @@ Spark run → result filed → processed. The user confirmed: *"it works!"*
   non-existent Status column — `row[4]` is `params_json`, so its
   "Processed" write would have overwritten the payload — and its trigger
   setup deleted ALL project triggers, which would have killed the On
-  change doorbell). The script's only jobs are the alert email and, since
-  the 2026-11-03 upgrade, naming pending kinds in that email's body. All
-  processing — including business.call routing — lives in the receiving
-  schedule's prompt (Step 3), never in Apps Script.
-- **Keep request scope read/query-only** on the scheduled lane — with the
-  single standing exception of `business.call` (2026-11-03), which routes
-  to the Phone Call Agent under its params' hard_bounds. Anything else
+  change doorbell). The script's only job is the alert email; all
+  processing lives in the receiving schedule's prompt (Step 3), never in
+  Apps Script.
+- **Keep request scope read/query-only** on the scheduled lane. Anything
   that books, buys, sends, or deletes belongs in an interactive session
-  with a human approving.
+  with a human approving. (The 2026-11-03 business.call exception to
+  this rule was retired 2026-11-05 when Muse gained native business
+  calling.)
 
 ## Optional: the interactive MCP layer
 
